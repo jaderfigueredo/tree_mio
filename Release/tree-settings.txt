@@ -1,0 +1,1 @@
+( 0 galho 3 171 ( 1 galho 35 -4.06 ( 4 galho 0 1.001 ( 9 folha 2 ) ( 10 folha 1 ) ) ) ( 2 galho 14 0 ( 5 galho 26 -0.05609473 ( 11 folha 1 ) ( 12 folha 2 ) ( 12 folha 1 ) ) ( 6 galho 0 1.001 ( 13 galho 0 1.000002 ( 27 folha 0 ) ) ( 14 folha 0 ) ( 14 folha 1 ) ) ) ) 

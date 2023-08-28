@@ -1,0 +1,1 @@
+( 0 galho 14 0.0015873 ( 1 galho 3 -4.06 ( 3 galho 3 -4.06 ( 7 folha 2 ) ( 8 folha 2 ) ) ( 4 galho 14 0.0015873 ( 9 folha 2 ) ( 10 folha 0 ) ) ) ( 2 galho 14 0.0015873 ( 5 galho 12 120.1016 ( 11 folha 0 ) ( 12 folha 2 ) ) ( 6 galho 10 175 ( 13 folha 1 ) ( 14 folha 2 ) ) ) ) 
