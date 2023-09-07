@@ -787,7 +787,12 @@ int main(int argc, char** argv){
 
 	// Encontrando o epsilon, que é a menor diferença entre dois atributos que não for zero
 	// Para_todo elemento
-	double epsilon = 999999999999; // valor suficientemente grande para forçar haver uma diferença entre 2 atributos que seja menor que ele.
+	double epsilon = M; // valor suficientemente grande para forçar haver uma diferença entre 2 atributos que seja menor que ele.
+	vector<double> epsilons(p);
+	for(int j = 0; j < p; j++) {
+		epsilons[j] = M; // espsilon começa com M, pois M é a maior diferença entre todos os valores de atributos
+	}
+
 	//for(int i = 0; i < n; i++) {
 	for(int i = 0; i < n-1; i++) {
 		// Para_todos os pares de elementos
@@ -798,17 +803,21 @@ int main(int argc, char** argv){
 				// Não atualizar o valor se a diferença entre dois atributos for zero.
 				if(difference >= 0.00000001) {
 					epsilon = epsilon > difference ? difference : epsilon;
+					epsilons[j] = (epsilons[j] > difference) ? difference : epsilons[j];
 				}
 			}
 		}
 	}
 
-	epsilon = 0.00001; // TODO VER ISSO AQUI
+	//epsilon = 0.00001; // TODO VER ISSO AQUI
 
 	// Imprimindo cada epsilon encontrado para cada atributo
 	if(DISPLAY_OUTPUTS) {
 		cout.precision(10);
-		cout << "Epsilon: " << epsilon << endl;
+		//cout << "Epsilon: " << epsilon << endl;
+		for(int j = 0; j < p; j++) {
+			cout << "Epsilon[" << j << "]: " << epsilons[j] << endl;
+		}
 	}
 
 
@@ -848,21 +857,28 @@ int main(int argc, char** argv){
 			else { // Se o nó atual é ímpar
 				// Aplicar Restrição 11: que
 				for(int i = 0; i < n; i++) {
+					// Guardará qual o atributo está sendo dividido no nó corrente
+					IloExpr epsilonCurr(env);
+
 					// Para cada parâmetro
 					IloExpr produtoEscalar(env);
 					for(int j = 0; j < p; j++) {
 						produtoEscalar += a[j][pai] * x[i][j];
 
-						// -1
+						// Obtendo o epsilon de qual atributo está sendo usado para fazer a divisão do nó
+						epsilonCurr += a[j][pai] * epsilons[j];
 					}
 
 					if(normalizar) {
 						// Haveria um possível erro nos parênteses do lado esquerdo da inequação?
+						//model.add(produtoEscalar+epsilonCurr <= b[pai]+((1+M)*(1-z[i][t]))); // M = amplitude absoluta
+						//model.add(produtoEscalar+epsilonCurr <= b[pai]+((1+M)*(1-z[i][t]))); // M = amplitude absoluta
 						model.add(produtoEscalar+epsilon <= b[pai]+((1+M)*(1-z[i][t]))); // M = amplitude absoluta
 					}
 					else {
 						// (M+1), onde M é a amplitude e, portanto, (M+1) é um valor grande o suficiente para evitar os extremos
-						//model.add(produtoEscalar+epsilon <= b[pai]+(M+1)*(1-z[i][t])); // M = amplitude absoluta
+						//model.add(produtoEscalar+epsilonCurr <= b[pai]+(M+1)*(1-z[i][t])); // M = amplitude absoluta
+						//model.add(produtoEscalar+epsilonCurr <= b[pai]+(M+1)*(1-z[i][t])); // M = amplitude absoluta
 						model.add(produtoEscalar+epsilon <= b[pai]+(M+1)*(1-z[i][t])); // M = amplitude absoluta
 					}
 				}
