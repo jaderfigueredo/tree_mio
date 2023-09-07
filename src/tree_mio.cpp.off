@@ -224,8 +224,7 @@ int saveTrainingDataStart(
 		int	maxTreeHeigth,
 		double alpha,
 		int minLeafElements,
-		int timeLimit,
-		int normalizar) {
+		int timeLimit) {
 
 	// Abrindo o arquivo e definindo o separador CSV
 	fstream dataTrainingFile;
@@ -250,7 +249,7 @@ int saveTrainingDataStart(
 		line = "printOutputs"+SEP+"datasetName"+SEP+"nElements"+SEP+"nAttributes"+SEP+
 				"nClasses"+SEP+"classesInLine"+SEP+"maxTreeHeigth"+SEP+"alpha"+SEP+
 				"minLeafElements"+SEP+"timeLimit"+SEP+"totalElementos"+SEP+"totalGalhos"+SEP+
-				"totalFolhas"+SEP+"alturaReal"+SEP+"totalErros"+SEP+"totalAcertos"+SEP+"spentTime"+SEP+"normalizar";
+				"totalFolhas"+SEP+"alturaReal"+SEP+"totalErros"+SEP+"totalAcertos"+SEP+"spentTime";
 
 		if(DISPLAY_OUTPUTS) { cout << line << endl;}
 		dataTrainingFile << line;
@@ -260,7 +259,7 @@ int saveTrainingDataStart(
 	line = std::to_string(printOutputs)+SEP+datasetName+SEP+std::to_string(nElements)+SEP+
 			std::to_string(nAttributes)+SEP+std::to_string(nClasses)+SEP+"\""+classesInLine+"\""+SEP+
 			std::to_string(maxTreeHeigth)+SEP+std::to_string(alpha)+SEP+std::to_string(minLeafElements)+SEP+
-			std::to_string(timeLimit)+SEP+std::to_string(normalizar);
+			std::to_string(timeLimit);
 	if(DISPLAY_OUTPUTS) { cout << line << endl << endl;}
 	dataTrainingFile << endl << line;
 
@@ -308,19 +307,10 @@ int saveTrainingDataEnd(
 }
 
 
-int main(int argc, char** argv){
-
-	// Inicializando totais[]
-	for(int i = 0; i < N_TOTAIS; i++) {
-		totais[i] = 0;
-	}
-
-	// Calculando o tempo gasto
-	clock_t startTime = clock();
-	clock_t endTime = startTime;
-
-
-
+/**
+ * Imprime o menu e obtem do usuário se pode-se continuar a execução ou não.
+ */
+int printMenu(int argc, char** argv) {
 	// Recebe o nome do arquivo por parâmetro quando é passado
 	if(argc > 1) {
 		DISPLAY_OUTPUTS = atoi(argv[1]);
@@ -338,7 +328,6 @@ int main(int argc, char** argv){
 			cout << "[7] alpha (padrao: 0.3)" << endl;
 			cout << "[8] Min. elementos na folha (padrao: 2)" << endl;
 			cout << "[9] Tempo max. exec.(padrao: 180 s)" << endl;
-			cout << "[10] Normalizado (1- Sim (padrao), 0 - Não)" << endl;
 			cout << endl;
 			cout << "Deseja continuar mesmo assim? [S ou n]: ";
 			char continuar;
@@ -348,7 +337,42 @@ int main(int argc, char** argv){
 			}
 		}
 	}
+	return 1;
+}
 
+
+/**
+ *
+ */
+int main(int argc, char** argv){
+
+	// Inicializando totais[]
+	for(int i = 0; i < N_TOTAIS; i++) {
+		totais[i] = 0;
+	}
+
+	// Calculando o tempo gasto
+	clock_t startTime = clock();
+	clock_t endTime = startTime;
+
+
+	int _continue = printMenu(argc, argv);
+	if(!_continue) {
+		return 0;
+	}
+
+
+	/**
+	 * Criar as principais variáveis do problema e define-as conforme os
+	 * parâmetros recebidos pela função main()
+	 */
+	int p;					// número de parâmetros do problema
+	int K;					// número de classes do problema
+	string classesInLine;	// todas as classes do problema separadas por vígula
+	int altura;				// altura máxima da árvore
+	double alpha;			// alpha: valor que equilibra acurácia x complexidade
+	int nMin;				// número mínimo de elementos em um nó folha
+	int maxTime;			// tempo máximo de execução
 
 	if(DISPLAY_OUTPUTS) { cout << "Argumentos do programa:" << endl; }
 	for(int i = 0; i < argc; i++) {
@@ -356,7 +380,7 @@ int main(int argc, char** argv){
 	}
 	if(DISPLAY_OUTPUTS) { cout << endl; }
 
-	// Recebendo atributos por parâmetro
+	// Recebendo atributos do problema por parâmetro
 
 	// Recebe o nome do arquivo por parâmetro quando é passado
 	if(argc > 1) {
@@ -370,40 +394,38 @@ int main(int argc, char** argv){
 	}
 
 	// Recebe o número de atributos do dataset
-	int p  = (argc > 3) ? atoi(argv[3]) : 4;
+	p  = (argc > 3) ? atoi(argv[3]) : 4;
 	if(DISPLAY_OUTPUTS) { cout << "Num. de atributos do problema:\t" << p << endl; }
 
 	// Recebe o número de clases do dataset
-	int K  = (argc > 4) ? atoi(argv[4]) : 3;
+	K  = (argc > 4) ? atoi(argv[4]) : 3;
 	if(DISPLAY_OUTPUTS) { cout << "Num. de classes do problema:\t" << K << endl; }
 
 	// Recebe a lista de classes possíveis para o problema
-	string classesInLine = (argc > 5) ? string(argv[5]) : "Iris-setosa,Iris-versicolor,Iris-virginica";
+	classesInLine = (argc > 5) ? string(argv[5]) : "Iris-setosa,Iris-versicolor,Iris-virginica";
 	if(DISPLAY_OUTPUTS) { cout << "5 - Classes separadas por vírgula:\t" << classesInLine << endl; }
 
 	// Recebe a altura da árvore por parâmetro quando é passada
-	int altura = (argc > 6) ? atoi(argv[6]) : 2;
+	altura = (argc > 6) ? atoi(argv[6]) : 2;
 	if(DISPLAY_OUTPUTS) { cout << "altura:\t" << altura << endl; }
 
 	// Recebe o alpha por parâmetro quando é passado
 	char* ptrdouble;
-	double alpha = (argc > 7) ? strtod(argv[7], &ptrdouble) : 0.3;
+	alpha = (argc > 7) ? strtod(argv[7], &ptrdouble) : 0.3;
 	if(DISPLAY_OUTPUTS) { cout << "alpha:\t" << alpha << endl; }
 
 	// Recebe a quantidade mínima de cad folha quando é passada
-	int nMin  = (argc > 8) ? atoi(argv[8]) : 2;
+	nMin  = (argc > 8) ? atoi(argv[8]) : 2;
 	if(DISPLAY_OUTPUTS) { cout << "Min. elementos na folha:\t" << nMin << endl; }
 
 	// Recebe o tempo máximo para execução do programa em segundos
-	int maxTime  = (argc > 9) ? atoi(argv[9]) : 2*60;
+	maxTime  = (argc > 9) ? atoi(argv[9]) : 2*60;
 	if(DISPLAY_OUTPUTS) { cout << "Tempo max. exec.:\t" << maxTime << " sec." << endl; }
 
-	// Recebe o tempo máximo para execução do programa em segundos
-	int normalizar  = (argc > 10) ? atoi(argv[10]) : 1;
-	if(DISPLAY_OUTPUTS) { cout << "Normalizar:\t" << normalizar << endl; }
+
 
 	// Gravando dados de execução do programa
-	saveTrainingDataStart(DISPLAY_OUTPUTS,fileName,-1,p,K,classesInLine,altura,alpha,nMin,maxTime,normalizar);
+	saveTrainingDataStart(DISPLAY_OUTPUTS,fileName,-1,p,K,classesInLine,altura,alpha,nMin,maxTime);
 
 
 	// CARREGANDO DADOS
@@ -549,54 +571,54 @@ int main(int argc, char** argv){
 
 	//
 	// /*
-	if(normalizar) {
-		// ### Normalizando os dados ###
-		double menorValorColuna = 0;
-		double maiorValorColuna = 0;
-		double amplitudeColuna = 0;
-		double xNormalizado[n][p+1];
 
-		// Para cada coluna:
-		for(int j = 0; j < p; j++) {
-			// Inicializando variáveis
-			menorValorColuna = 0;
-			maiorValorColuna = 0;
+	// ### Normalizando os dados ###
+	double menorValorColuna = 0;
+	double maiorValorColuna = 0;
+	double amplitudeColuna = 0;
+	double xNormalizado[n][p+1];
 
-			// Para cada linha:
-			// O primeiro valor é inicialmente o maior e o menor valor da coluna
-			menorValorColuna = x[0][j];
-			maiorValorColuna = x[0][j];
+	// Para cada coluna:
+	for(int j = 0; j < p; j++) {
+		// Inicializando variáveis
+		menorValorColuna = 0;
+		maiorValorColuna = 0;
 
-			for(int i = 0; i < n; i ++) {
-				// Obter o menor valor
-				if(x[i][j] < menorValorColuna) { menorValorColuna =  x[i][j]; }
-				// Obter o maior valor
-				if(x[i][j] > maiorValorColuna) { maiorValorColuna =  x[i][j]; }
-			}
+		// Para cada linha:
+		// O primeiro valor é inicialmente o maior e o menor valor da coluna
+		menorValorColuna = x[0][j];
+		maiorValorColuna = x[0][j];
 
-			// Calcular a amplitude
-			amplitudeColuna = maiorValorColuna - menorValorColuna;
-			// Normalizar a linha i calculando (xi - médiaDeX) / ampliturdeDeX
-			for(int i = 0; i < n; i++){
-				xNormalizado[i][j] = (x[i][j] - menorValorColuna) / amplitudeColuna;
-			}
+		for(int i = 0; i < n; i ++) {
+			// Obter o menor valor
+			if(x[i][j] < menorValorColuna) { menorValorColuna =  x[i][j]; }
+			// Obter o maior valor
+			if(x[i][j] > maiorValorColuna) { maiorValorColuna =  x[i][j]; }
 		}
 
-		// Imprimindo os valores normalizados
-		cout << "--- Valores Normalizados ---" << endl;
-		std::cout << std::fixed;
-		std::cout << std::setprecision(2);
-		for(int i = 0; i < n; i ++) {
-			for(int j = 0; j < p; j++) {
-				x[i][j] = xNormalizado[i][j];
-				cout << std::setprecision(7) << x[i][j] << "\t";
-			}
-			cout << std::setprecision(1) << x[i][p] << "\t";
-			cout << endl;
+		// Calcular a amplitude
+		amplitudeColuna = maiorValorColuna - menorValorColuna;
+		// Normalizar a linha i calculando (xi - médiaDeX) / ampliturdeDeX
+		for(int i = 0; i < n; i++){
+			xNormalizado[i][j] = (x[i][j] - menorValorColuna) / amplitudeColuna;
 		}
 	}
 
+	// Imprimindo os valores normalizados
+	cout << "--- Valores Normalizados ---" << endl;
+	std::cout << std::fixed;
+	std::cout << std::setprecision(2);
+	for(int i = 0; i < n; i ++) {
+		for(int j = 0; j < p; j++) {
+			x[i][j] = xNormalizado[i][j];
+			cout << std::setprecision(7) << x[i][j] << "\t";
+		}
+		cout << std::setprecision(1) << x[i][p] << "\t";
+		cout << endl;
+	}
+
 	// */
+
 
 	IloEnv env;
 	IloModel model(env);
@@ -722,29 +744,27 @@ int main(int argc, char** argv){
 		for(int j = 0; j < p; j++) {
 			somaAtributosDivididosNesteNo += a[j][t];
 		}
-		model.add(somaAtributosDivididosNesteNo == d[t]); // Está igual ao artigo. Fórmula (1)
+		model.add(somaAtributosDivididosNesteNo == d[t]);
 	}
 
 
 	// Restrição 3: Garante que se um nó não faz separação,
-	// consequentemente o limiar dele também é zero, fazendo todos os filhos irem para a direita.
-	// Para todos os nós folha
+	// consequentemente o limiar dele também é /*zero*/ o menor possível,
+	// fazendo todos os filhos irem para a direita.
+	// Para todos os nós galho
 	for(int t = 0; t < totalBranches; t++) {
-		if(normalizar) {
-			// Antes (Normalizado): model.add(b[t] <= d[t]);
-			model.add(b[t] <= d[t]);
-		}
-		else {
-			// Não normalizado:
-			model.add(b[t] <= minValueAttribute+(d[t]*M));
-		}
+		// Antes (Normalizado): model.add(b[t] <= d[t]);
+		model.add(b[t] <= d[t]);
+
+		// Não normalizado:
+		//model.add(b[t] <= minValueAttribute + (d[t]*(M)));
 	}
 
 
 	// Se um nó é branch, o pai dele também é branch
 	// _Todo d(t) tem que ser <= que d(getParent(t))
 
-	// Restrição para o nó raiz
+	// Restrição para o nó raiz como nó galho, ou seja, d[0] == 1
 	model.add(d[0] == 1);
 	// Restrição 5: para os demais nós.
 	for(int t = 1; t < totalBranches;t++) {
@@ -782,12 +802,17 @@ int main(int argc, char** argv){
 		for(int t = firstLeaf; t < maxNos; t++) {
 			somaElementoDasFolhas += z[i][t];
 		}
-		model.add(somaElementoDasFolhas == 1); // Define que cada elemento termine finalmente em uma única folha
+		model.add(somaElementoDasFolhas == 1);
 	}
 
 	// Encontrando o epsilon, que é a menor diferença entre dois atributos que não for zero
 	// Para_todo elemento
-	double epsilon = 999999999999; // valor suficientemente grande para forçar haver uma diferença entre 2 atributos que seja menor que ele.
+	//double epsilon = 999999999999; // valor suficientemente grande para forçar haver uma diferença entre 2 atributos que seja menor que ele.
+	vector<double> epsilon(p);
+	for(int j = 0; j < p; j++) {
+		epsilon[j] = M; // espsilon começa com M, pois M é a maior diferença entre todos os valores de atributos
+	}
+
 	//for(int i = 0; i < n; i++) {
 	for(int i = 0; i < n-1; i++) {
 		// Para_todos os pares de elementos
@@ -796,19 +821,22 @@ int main(int argc, char** argv){
 			for(int j = 0; j < p; j++) {
 				double difference = abs(x[i][j]-x[h][j]);
 				// Não atualizar o valor se a diferença entre dois atributos for zero.
-				if(difference >= 0.00000001) {
-					epsilon = epsilon > difference ? difference : epsilon;
+				if(difference >= 0.00000000001) {
+					//epsilon = epsilon > difference ? difference : epsilon;
+					epsilon[j] = (epsilon[j] > difference) ? difference : epsilon[j];
 				}
 			}
 		}
 	}
 
-	epsilon = 0.00001; // TODO VER ISSO AQUI
 
 	// Imprimindo cada epsilon encontrado para cada atributo
 	if(DISPLAY_OUTPUTS) {
 		cout.precision(10);
-		cout << "Epsilon: " << epsilon << endl;
+		//cout << "Epsilon: " << epsilon << endl;
+		for(int j = 0; j < p; j++) {
+			cout << "Epsilon[" << j << "]: " << epsilon[j] << endl;
+		}
 	}
 
 
@@ -828,45 +856,70 @@ int main(int argc, char** argv){
 				for(int i = 0; i < n; i++) {
 					// Para cada parâmetro
 					IloExpr produtoEscalar(env);
+					// Alteração para dados não normalizados
+					//produtoEscalar += minValueAttribute;
 					for(int j = 0; j < p; j++) {
+						//produtoEscalar += a[j][pai] * x[i][j]; Com erro
+						// Normalizado:
 						produtoEscalar += a[j][pai] * x[i][j];
+
+						// Não normalizados
+						//produtoEscalar += a[j][pai] * (x[i][j] - minValueAttribute);
 					}
 
-					if(normalizar) {
-						// Exatamente igual está no artigo
-						model.add(produtoEscalar >= b[pai]-(1-z[i][t]));
-					}
-					else {
-						//cerr << produtoEscalar <<  " >= " << "b["<<pai<<"] " << " -2*" << "(1-z[" << i << "][" << t << "])" << endl;
-						//cerr << produtoEscalar <<  " >= " << b[pai] << " -2*" << (1-z[i][t]) << endl;
-						// (M+1), onde M é a amplitude e, portanto, (M+1) é um valor grande o suficiente para evitar os extremos
-						model.add(produtoEscalar >= b[pai]-((M+1)*(1-z[i][t]))); // M = amplitude absoluta
-						//cerr << "Adicionado com sucesso." << endl;
-					}
+					//cerr << produtoEscalar <<  " >= " << "b["<<pai<<"] " << " -2*" << "(1-z[" << i << "][" << t << "])" << endl;
+					//cerr << produtoEscalar <<  " >= " << b[pai] << " -2*" << (1-z[i][t]) << endl;
+					// (M+1), onde M é a amplitude e, portanto, (M+1) é um valor grande o suficiente para evitar os extremos
+
+					// Não normalizado
+					// TODO Verificar se a inequação abaixo funciona em todos os casos
+					// model.add(produtoEscalar >= b[pai]-((M+1)*(1-z[i][t]))); // M = amplitude absoluta
+					//cerr << "Adicionado com sucesso." << endl;
+
+					// Planilhoa com testes:
+					// https://docs.google.com/spreadsheets/d/16nKGRQPiKy8YZpNOorGnaPYsXC4cGxLxQgnHBbiKp3Q/edit#gid=0
+
+					// Normalizado:
+					model.add(produtoEscalar >= b[pai]-((M)*(1-z[i][t]))); // M = amplitude absoluta
 				}
 			}
 			else { // Se o nó atual é ímpar
 				// Aplicar Restrição 11: que
 				for(int i = 0; i < n; i++) {
+					// Guardará qual o atributo está sendo dividido no nó corrente
+					IloExpr epsilonCurr(env);
+
 					// Para cada parâmetro
 					IloExpr produtoEscalar(env);
+
+					// Não normalizado
+					//produtoEscalar += minValueAttribute;
+
 					for(int j = 0; j < p; j++) {
+						// Não normalizado
+						// produtoEscalar += a[j][pai] * (x[i][j] - minValueAttribute);
+						// Normalizado:
 						produtoEscalar += a[j][pai] * x[i][j];
 
-						// -1
+						// Obtendo o epsilon de qual atributo está sendo usado para fazer a divisão do nó
+						epsilonCurr += a[j][pai] * epsilon[j];
 					}
+					// (M+1), onde M é a amplitude e, portanto, (M+1) é um valor grande o suficiente para evitar os extremos
+					//model.add(produtoEscalar+epsilon <= b[pai]+(M+1)*(1-z[i][t])); // M = amplitude absoluta
+					//Usando um único epsilon
+					//model.add(produtoEscalar+epsilon <= b[pai]+(M+1)*(1-z[i][t])); // M = amplitude absoluta
 
-					if(normalizar) {
-						// Haveria um possível erro nos parênteses do lado esquerdo da inequação?
-						model.add(produtoEscalar+epsilon <= b[pai]+((1+M)*(1-z[i][t]))); // M = amplitude absoluta
-					}
-					else {
-						// (M+1), onde M é a amplitude e, portanto, (M+1) é um valor grande o suficiente para evitar os extremos
-						//model.add(produtoEscalar+epsilon <= b[pai]+(M+1)*(1-z[i][t])); // M = amplitude absoluta
-						model.add(produtoEscalar+epsilon <= b[pai]+(M+1)*(1-z[i][t])); // M = amplitude absoluta
-					}
+					// TODO Verificar se funciona em todos os casos
+					// TODO trazer os epsilons
+					// Computer on the beach
+					// Não normalizado
+					// model.add(produtoEscalar+0.001 <= b[pai]+(M+1)*(1-z[i][t])); // M = amplitude absoluta
+
+					// Normalizado:
+					model.add(produtoEscalar+0.001 <= b[pai]+(M)*(1-z[i][t])); // M = amplitude absoluta
 				}
 			}
+
 
 			//cerr << pai << ", ";
 			noAtual = pai;
@@ -1093,10 +1146,10 @@ int main(int argc, char** argv){
 		for(int attr = 0; attr < p; attr++){
 			int usedAttr = cplex.getValue(a[attr][branch]);
 			if(usedAttr >= 0.5) {
-				cout << endl << "Branch " << branch << ",\tParam. " << attr << ",\tValue " << std::setprecision(6) << splitValue << endl;
+				cout << "Branch " << branch << ",\tParam. " << attr << ",\tValue " << std::setprecision(6) << splitValue << endl;
 			}
 			else {
-				// cout << "Branch " << "["<<branch<<"]"<<"["<<attr<<"] = --" << std::setprecision(6) << splitValue << "\t";
+				//cout << "Branch " << "["<<branch<<"]"<<"["<<attr<<"] = --" << std::setprecision(6) << splitValue << endl << endl;
 			}
 		}
 	}
@@ -1109,10 +1162,10 @@ int main(int argc, char** argv){
 			int labeledLeaf = cplex.getValue(c[k_class][leaf] >= 0.5);
 
 			if(labeledLeaf) {
-				cout << endl << "Leaf " << leaf << "\tclasse: " << k_class << "\tN Elements: " << cplex.getValue(N[k_class][leaf]) << endl;
+				cout << "Leaf " << leaf << "\tclasse: " << k_class << "\tN Elements: " << cplex.getValue(N[k_class][leaf]) << endl;
 			}
 			else {
-				// cout << "Leaf " << leaf << "\tclasse not: " << k_class << "\tN Elements: " << cplex.getValue(N[k_class][leaf]) << "\t";
+				//cout << "Leaf " << leaf << "\tclasse not: " << k_class << "\tN Elements: " << cplex.getValue(N[k_class][leaf]) << endl << endl;
 			}
 		}
 	}

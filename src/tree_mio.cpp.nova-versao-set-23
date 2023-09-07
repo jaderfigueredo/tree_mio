@@ -400,7 +400,7 @@ int main(int argc, char** argv){
 
 	// Recebe o tempo máximo para execução do programa em segundos
 	int normalizar  = (argc > 10) ? atoi(argv[10]) : 1;
-	if(DISPLAY_OUTPUTS) { cout << "Normalizar:\t" << normalizar << endl; }
+	if(DISPLAY_OUTPUTS) { cout << "Normalizar:\t" << maxTime << " sec." << endl; }
 
 	// Gravando dados de execução do programa
 	saveTrainingDataStart(DISPLAY_OUTPUTS,fileName,-1,p,K,classesInLine,altura,alpha,nMin,maxTime,normalizar);
@@ -796,14 +796,14 @@ int main(int argc, char** argv){
 			for(int j = 0; j < p; j++) {
 				double difference = abs(x[i][j]-x[h][j]);
 				// Não atualizar o valor se a diferença entre dois atributos for zero.
-				if(difference >= 0.00000001) {
+				if(difference >= 0.00000000001) {
 					epsilon = epsilon > difference ? difference : epsilon;
 				}
 			}
 		}
 	}
 
-	epsilon = 0.00001; // TODO VER ISSO AQUI
+	epsilon = 0.0001; // TODO VER ISSO AQUI
 
 	// Imprimindo cada epsilon encontrado para cada atributo
 	if(DISPLAY_OUTPUTS) {
@@ -857,7 +857,6 @@ int main(int argc, char** argv){
 					}
 
 					if(normalizar) {
-						// Haveria um possível erro nos parênteses do lado esquerdo da inequação?
 						model.add(produtoEscalar+epsilon <= b[pai]+((1+M)*(1-z[i][t]))); // M = amplitude absoluta
 					}
 					else {
@@ -867,6 +866,7 @@ int main(int argc, char** argv){
 					}
 				}
 			}
+
 
 			//cerr << pai << ", ";
 			noAtual = pai;
@@ -1093,10 +1093,10 @@ int main(int argc, char** argv){
 		for(int attr = 0; attr < p; attr++){
 			int usedAttr = cplex.getValue(a[attr][branch]);
 			if(usedAttr >= 0.5) {
-				cout << endl << "Branch " << branch << ",\tParam. " << attr << ",\tValue " << std::setprecision(6) << splitValue << endl;
+				cout << "Branch " << branch << ",\tParam. " << attr << ",\tValue " << std::setprecision(6) << splitValue << endl;
 			}
 			else {
-				// cout << "Branch " << "["<<branch<<"]"<<"["<<attr<<"] = --" << std::setprecision(6) << splitValue << "\t";
+				//cout << "Branch " << "["<<branch<<"]"<<"["<<attr<<"] = --" << std::setprecision(6) << splitValue << endl << endl;
 			}
 		}
 	}
@@ -1109,10 +1109,10 @@ int main(int argc, char** argv){
 			int labeledLeaf = cplex.getValue(c[k_class][leaf] >= 0.5);
 
 			if(labeledLeaf) {
-				cout << endl << "Leaf " << leaf << "\tclasse: " << k_class << "\tN Elements: " << cplex.getValue(N[k_class][leaf]) << endl;
+				cout << "Leaf " << leaf << "\tclasse: " << k_class << "\tN Elements: " << cplex.getValue(N[k_class][leaf]) << endl;
 			}
 			else {
-				// cout << "Leaf " << leaf << "\tclasse not: " << k_class << "\tN Elements: " << cplex.getValue(N[k_class][leaf]) << "\t";
+				//cout << "Leaf " << leaf << "\tclasse not: " << k_class << "\tN Elements: " << cplex.getValue(N[k_class][leaf]) << endl << endl;
 			}
 		}
 	}
