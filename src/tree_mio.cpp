@@ -547,6 +547,7 @@ int main(int argc, char** argv){
 	// FIM DA LEITURA DO ARQUIVO CSV SEM ESPAÇAMENTO DEPOIS DA VÍRGULA
 
 
+	// TODO #TODO Obter valores max, min, amplitude, etc, da normalização, sem analisar e modificar os dados.
 	//
 	// /*
 	if(normalizar) {
@@ -660,8 +661,13 @@ int main(int argc, char** argv){
 	}
 
 
+
 	// Calculando a amplitude dos valores dos atributos
-	double M = maxValueAttribute - minValueAttribute;
+	// double M = maxValueAttribute - minValueAttribute;
+	// TODO #TODO Forçando a definição do valor máximo e mínimo (1 e 0) no dataset
+	maxValueAttribute = 1;
+	minValueAttribute = 0;
+	double M = 2; // Professor acha que M deve ser maior que 1
 
 	// Imprimindo valores mínimo e máximo dos atributos
 	if(DISPLAY_OUTPUTS) {
@@ -680,7 +686,7 @@ int main(int argc, char** argv){
 		// o valor do limiar (b[i]) tem que ser menor que o mínimo para permitir que todos os valores
 		// sejam maior que o limiar.
 		//b[i] = IloNumVar(env, minValueAttribute, maxValueAttribute);
-		b[i] = IloNumVar(env, minValueAttribute, maxValueAttribute);
+		b[i] = IloNumVar(env, 0, 1); // Prof.: b tem que poder ser 0
 	}
 
 	// z[i][t] = 1, se o elemento i está no nó folha t, 0 se não.
@@ -697,14 +703,14 @@ int main(int argc, char** argv){
 	// N[k][t] = é o número de elementos da classe k no nó folha t
 	IloIntVarArray2 N(env, K);
 	for(int k = 0; k < K; k++) {
-		N[k] = IloIntVarArray(env, maxNos, 0, n);
+		N[k] = IloIntVarArray(env, maxNos, 0, n);  // Só vamos usar os índices das folhas
 	}
 
 	// c[k][t] = 1, se a folha t é classificada como classe k, 0 caso contrário
 	IloBoolVarArray2 c(env, K);
 	// Para toda classe k
 	for(int k = 0; k < K; k++) {
-		c[k] = IloBoolVarArray(env, maxNos);
+		c[k] = IloBoolVarArray(env, maxNos);  // Só vai usar para os indices das folhas
 	}
 
 	// L[t] = Quarda quantos erros houveram na folha 't'
@@ -730,6 +736,7 @@ int main(int argc, char** argv){
 	// consequentemente o limiar dele também é zero, fazendo todos os filhos irem para a direita.
 	// Para todos os nós folha
 	for(int t = 0; t < totalBranches; t++) {
+		/*
 		if(normalizar) {
 			// Antes (Normalizado): model.add(b[t] <= d[t]);
 			model.add(b[t] <= d[t]);
@@ -738,6 +745,8 @@ int main(int argc, char** argv){
 			// Não normalizado:
 			model.add(b[t] <= minValueAttribute+(d[t]*M));
 		}
+		*/
+		model.add(b[t] <= d[t]); // p/ dados normalizados
 	}
 
 
@@ -758,7 +767,7 @@ int main(int argc, char** argv){
 	// Restrição 6: de que os elementos só estão em nós folhas
 	// Percorrendo os elementos
 	for(int i = 0; i < n; i++) {
-		// Percorrendo os nós
+		// Percorrendo os nós folhas
 		for(int t = firstLeaf; t < maxNos; t++) {
 			model.add(z[i][t] <= l[t]);
 		}
@@ -823,8 +832,7 @@ int main(int argc, char** argv){
 
 	// Restrição 11: de que se um elemento pertence à um nó t, ele não pode ter sido
 	// desviado (na árvore) por um ancestral de t.
-	// Em outras palavras, o elemento precisa ter passado por todos os ancestrais de t
-	// Para _todo  nó interno (de 0 até totalBranches)
+	// Em outras palavras, o elemento precisa ter passado por todos os ancestrais de t.
 	for(int t = firstLeaf; t < maxNos; t++) {
 		int pai = getParent(t);
 
@@ -841,6 +849,7 @@ int main(int argc, char** argv){
 						produtoEscalar += a[j][pai] * x[i][j];
 					}
 
+					/*
 					if(normalizar) {
 						// Exatamente igual está no artigo
 						model.add(produtoEscalar >= b[pai]-(1-z[i][t]));
@@ -852,6 +861,9 @@ int main(int argc, char** argv){
 						model.add(produtoEscalar >= b[pai]-((M+1)*(1-z[i][t]))); // M = amplitude absoluta
 						//cerr << "Adicionado com sucesso." << endl;
 					}
+					*/
+					model.add(produtoEscalar >= b[pai]-(1-z[i][t]));
+
 				}
 			}
 			else { // Se o nó atual é ímpar
@@ -869,6 +881,7 @@ int main(int argc, char** argv){
 						epsilonCurr += a[j][pai] * epsilons[j];
 					}
 
+					/*
 					if(normalizar) {
 						// Haveria um possível erro nos parênteses do lado esquerdo da inequação?
 						//model.add(produtoEscalar+epsilonCurr <= b[pai]+((1+M)*(1-z[i][t]))); // M = amplitude absoluta
@@ -881,7 +894,26 @@ int main(int argc, char** argv){
 						//model.add(produtoEscalar+epsilonCurr <= b[pai]+(M+1)*(1-z[i][t])); // M = amplitude absoluta
 						model.add(produtoEscalar+epsilon <= b[pai]+(M+1)*(1-z[i][t])); // M = amplitude absoluta
 					}
-				}
+					*/
+					//model.add(produtoEscalar < b[pai]+((M)*(1-z[i][t]))); // Lógica sem PLI
+
+					/**
+					 * a) 0.2 <= 0.5 // Tem que ser satisfeito
+					 *
+					 * b) 0.4999+epsilon <= 0.5 // Também tem que ser satisfeito
+					 *
+					 * c) 0.5+epsilon <= 0.5 // Essa sim não pode ser satisfeita
+					 */
+					model.add(produtoEscalar+epsilon <= b[pai]+((M)*(1-z[i][t]))); // M = amplitude absoluta
+
+					/**
+					 * epsilon: 0.1
+					 * limiar: 0.5
+					 * 0.4+0.1 <= 0.5
+					 * 0.5 <= 0.5
+					 *
+					 */
+									}
 			}
 
 			//cerr << pai << ", ";
@@ -917,7 +949,7 @@ int main(int argc, char** argv){
 		for(int e = 0; e < n; e++) {
 			totalElementosDeUmaFolha += z[e][f];
 		}
-		model.add(totalElementosEmCadaFolha[f] == totalElementosDeUmaFolha);
+		model.add(totalElementosEmCadaFolha[f] == totalElementosDeUmaFolha); //N_t
 	}
 
 	// Restrição 18: Garante que cada folha, se for utilizada, tenha uma classe
@@ -936,8 +968,8 @@ int main(int argc, char** argv){
 	for(int f = firstLeaf; f < maxNos; f++) {
 		// para toda classe
 		for(int k = 0; k < K; k++) {
-			model.add(L[f] >= (totalElementosEmCadaFolha[f]-N[k][f])-n*(1-c[k][f]));
-			model.add(L[f] <= (totalElementosEmCadaFolha[f]-N[k][f])+n*(c[k][f]));
+			model.add(L[f] >= (totalElementosEmCadaFolha[f]-N[k][f])-(n*(1-c[k][f])));
+			model.add(L[f] <= (totalElementosEmCadaFolha[f]-N[k][f])+(n*(c[k][f])));
 		}
 	}
 
