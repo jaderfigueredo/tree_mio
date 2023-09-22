@@ -549,7 +549,7 @@ int main(int argc, char** argv){
 
 	// TODO #TODO Obter valores max, min, amplitude, etc, da normalização, sem analisar e modificar os dados.
 	//
-	// /*
+	/*
 	if(normalizar) {
 		// ### Normalizando os dados ###
 		double menorValorColuna = 0;
