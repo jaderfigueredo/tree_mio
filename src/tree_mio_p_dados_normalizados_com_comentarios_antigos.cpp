@@ -14,7 +14,6 @@ ILOSTLBEGIN
 
 #define DEBUG 0
 
-// Os valores são os índices do array que guardará os dados estatísticos
 #define NOS_UTEIS 0
 #define GALHOS 1
 #define FOLHAS 2
@@ -29,7 +28,7 @@ int totais[N_TOTAIS];
 using namespace std;
 
 int DISPLAY_OUTPUTS = 1;
-string datasets = "";
+string datasets = ""; //"/mnt/Dados/Home2019/Dropbox/Mestrado Computação UNIFEI/Disciplinas/Dissertação/Datasets/Iris/";
 string fileName = datasets+"Iris.csv";
 string fileNameTrainingData = "training-data-file.csv";
 vector<string> problemClasses;
@@ -175,6 +174,9 @@ void preOrder2(int nElements,
 			// separadamente no processo recursivo.
 			// Quando o nó corrente for o filho esquerdo, o passo recursivo para o filho direito não terá efeitos e vice-versa.
 			indexLeftChild = indexRightChild = (indexNode % 2 == 0) ? getRightChild(indexNodeParent) : getLeftChild(indexNodeParent);
+			//APAGAR: Jeito errado que estava anteriormente
+			//APAGAR: indexLeftChild = getLeftChild(indexNodeParent);
+			//APAGAR: indexRightChild = getRightChild(indexNodeParent);
 
 			// Se o nó corrente é inválido, o nó pai continuará sendo o nó pai válido ocorrido no processo.
 			indexNodeParent = getParent(indexNode);
@@ -228,6 +230,10 @@ int saveTrainingDataStart(
 	// Abrindo o arquivo e definindo o separador CSV
 	fstream dataTrainingFile;
 
+	//dataTrainingFile.open(fileNameTrainingData, fstream::out);
+	//dataTrainingFile << "texto";
+	//dataTrainingFile.close();
+	//return 1;
 
 	//dataTrainingFile.close();
 	dataTrainingFile.open(fileNameTrainingData, fstream::app);
@@ -436,6 +442,9 @@ int main(int argc, char** argv){
 	// Lendo os dados do arquivo
 	string cl;
 	int n; // = 150; // Total de elementos
+	// int p = 4; // Quantidade de atributos
+	// A quantidade de classes será definida durante a leitura do arquivo
+	//int K; // = 3; // Quantidade de classes
 	int	somaClasses[K]; // Quantidade de elementos associados a cada classe K
 	double minValueAttribute = 0; // Valor mínimo de um atributo
 	double maxValueAttribute = 0; // Valor máximo de um atributo
@@ -481,6 +490,19 @@ int main(int argc, char** argv){
 			}
 			// PAttributes+1 é o índice onde está a classe
 			else if(j == p+1) {
+				// DEPRECATED HARDCODE: Convertendo a classe de string para double
+				//attributes.push_back(word.compare("Iris-setosa") == 0 ? 0 : (word.compare("Iris-versicolor") == 0 ? 1 : 2));
+
+
+				// SOFTCODE:
+				// Adiciona todos os valores de classes a um conjunto, desta forma
+				// será possível tê-los associados à um índice
+				//setClasses.insert(word);
+
+				// Obtem o índice equivalente posição que a classe foi inserida na estrutura set
+				//unsigned int index = std::distance(setClasses.begin(), setClasses.find(word));
+
+				// Obtem o índice equivalente posição que a classe foi inserida na estrutura set
 				unsigned int index = findStringInVector(word, problemClasses);
 
 				// Se não encontra a classe no vetor, então ocorreu um erro
@@ -524,17 +546,78 @@ int main(int argc, char** argv){
 	}
 	// FIM DA LEITURA DO ARQUIVO CSV SEM ESPAÇAMENTO DEPOIS DA VÍRGULA
 
+
+	// TODO #TODO Obter valores max, min, amplitude, etc, da normalização, sem analisar e modificar os dados.
+	//
+	/*
+	if(normalizar) {
+		// ### Normalizando os dados ###
+		double menorValorColuna = 0;
+		double maiorValorColuna = 0;
+		double amplitudeColuna = 0;
+		double xNormalizado[n][p+1];
+
+		// Para cada coluna:
+		for(int j = 0; j < p; j++) {
+			// Inicializando variáveis
+			menorValorColuna = 0;
+			maiorValorColuna = 0;
+
+			// Para cada linha:
+			// O primeiro valor é inicialmente o maior e o menor valor da coluna
+			menorValorColuna = x[0][j];
+			maiorValorColuna = x[0][j];
+
+			for(int i = 0; i < n; i ++) {
+				// Obter o menor valor
+				if(x[i][j] < menorValorColuna) { menorValorColuna =  x[i][j]; }
+				// Obter o maior valor
+				if(x[i][j] > maiorValorColuna) { maiorValorColuna =  x[i][j]; }
+			}
+
+			// Calcular a amplitude
+			amplitudeColuna = maiorValorColuna - menorValorColuna;
+			// Normalizar a linha i calculando (xi - médiaDeX) / ampliturdeDeX
+			for(int i = 0; i < n; i++){
+				xNormalizado[i][j] = (x[i][j] - menorValorColuna) / amplitudeColuna;
+			}
+		}
+
+		// Imprimindo os valores normalizados
+		cout << "--- Valores Normalizados ---" << endl;
+		std::cout << std::fixed;
+		std::cout << std::setprecision(2);
+		for(int i = 0; i < n; i ++) {
+			for(int j = 0; j < p; j++) {
+				x[i][j] = xNormalizado[i][j];
+				cout << std::setprecision(7) << x[i][j] << "\t";
+			}
+			cout << std::setprecision(1) << x[i][p] << "\t";
+			cout << endl;
+		}
+	}
+
+	// */
+
 	IloEnv env;
 	IloModel model(env);
 	// Se for para ocultar saídas do programa, ocultar saídas do CPLEX também.
 	if(!DISPLAY_OUTPUTS) { env.setOut(env.getNullStream()); }
 
 	/*** VARIÁVEIS DO PROBLEMA ***/
+	// Variaveis do problema
+	//int altura = 2;
+	// altura = 2;
+	// máximo de nós da árvore
 	int maxNos = pow(2,(altura+1))-1;
 	// Primeira Folha
 	int firstLeaf = floor(maxNos/2);
 	// Total de nós branches
 	int totalBranches = firstLeaf;
+	// Total de nós folha
+	// int totalLeaf = maxNos - totalBranches;
+	// Mínimo de elementos que uma folha pode ter, caso ela não seja vazia.
+	//int nMin = 2;
 
 
 
@@ -554,9 +637,34 @@ int main(int argc, char** argv){
 		a[j] = IloBoolVarArray(env, totalBranches);
 	}
 
+	// Valores de separação dos nós galho
+	// 1. Encontrar o valor mínimo e máximo de um atributo
+	// Para isso inicía-se a busca pelo valor do primeiro atributo do primeiro objeto
+	// x[,[attr_0]..,[attr_n], [_class]] // Não, não tem index nessa matriz ainda.
+	if(x.size() > 0 && x[0].size() > 0) {
+		minValueAttribute = maxValueAttribute = x[0][0];
+	}
 
-	// Se os dados já estarão normalizados, o maior valor é 1 e o menor valor é 0.
-	// A amplitude M é 1, mas convencionou-se em M = 2
+	// Para todos os elementos do dataset
+	for(unsigned int i = 0; i < x.size(); i++) {
+		// Para todos os atributos do dataset, ou seja, exceto a coluna 1 (index) e a n (classe)
+		for(unsigned int j = 0; j < x[0].size()-1; j++) {
+			// Se o valor corrente for menor que o menor já encontrado, atualiza-se o menor
+			if(x[i][j] < minValueAttribute) {
+				minValueAttribute = x[i][j];
+			}
+			// Se o valor corrente for maior que o maior já encontrado, atualiza-se o maior
+			else if (x[i][j] > maxValueAttribute) {
+				maxValueAttribute = x[i][j];
+			}
+		}
+	}
+
+
+
+	// Calculando a amplitude dos valores dos atributos
+	// double M = maxValueAttribute - minValueAttribute;
+	// TODO #TODO Forçando a definição do valor máximo e mínimo (1 e 0) no dataset
 	maxValueAttribute = 1;
 	minValueAttribute = 0;
 	double M = 2; // Professor acha que M deve ser maior que 1
@@ -572,9 +680,12 @@ int main(int argc, char** argv){
 	// valor mínimo e máximo de um atributo.
 	IloNumVarArray b(env, totalBranches);
 	for(int i = 0; i < totalBranches; i++) {
+		// b[i] = IloNumVar(env, 0, 1);
+
 		// Quando um nó não faz divisão, ele precisa mandar todos elementos para a direita, para isso
 		// o valor do limiar (b[i]) tem que ser menor que o mínimo para permitir que todos os valores
 		// sejam maior que o limiar.
+		//b[i] = IloNumVar(env, minValueAttribute, maxValueAttribute);
 		b[i] = IloNumVar(env, 0, 1); // Prof.: b tem que poder ser 0
 	}
 
@@ -625,6 +736,16 @@ int main(int argc, char** argv){
 	// consequentemente o limiar dele também é zero, fazendo todos os filhos irem para a direita.
 	// Para todos os nós folha
 	for(int t = 0; t < totalBranches; t++) {
+		/*
+		if(normalizar) {
+			// Antes (Normalizado): model.add(b[t] <= d[t]);
+			model.add(b[t] <= d[t]);
+		}
+		else {
+			// Não normalizado:
+			model.add(b[t] <= minValueAttribute+(d[t]*M));
+		}
+		*/
 		model.add(b[t] <= d[t]); // p/ dados normalizados
 	}
 
@@ -697,14 +818,12 @@ int main(int argc, char** argv){
 		}
 	}
 
+	//epsilon = 0.00001; // TODO VER ISSO AQUI
+
 	// cout.unsetf(ios::scientific);
 	cout << endl << "epsilon:\t" << std::fixed << std::setprecision(10) << epsilon << endl << endl;
-	if(epsilon < 0 || epsilon > 1) {
-		string _continue;
-		cout << "Continuar? (S ou N):\t";
-		cin >> _continue;
-		cout << endl << endl;
-	}
+	string _continue;
+	cin >> _continue;
 
 	// Imprimindo cada epsilon encontrado para cada atributo
 	if(DISPLAY_OUTPUTS) {
@@ -735,6 +854,19 @@ int main(int argc, char** argv){
 						produtoEscalar += a[j][pai] * x[i][j];
 					}
 
+					/*
+					if(normalizar) {
+						// Exatamente igual está no artigo
+						model.add(produtoEscalar >= b[pai]-(1-z[i][t]));
+					}
+					else {
+						//cerr << produtoEscalar <<  " >= " << "b["<<pai<<"] " << " -2*" << "(1-z[" << i << "][" << t << "])" << endl;
+						//cerr << produtoEscalar <<  " >= " << b[pai] << " -2*" << (1-z[i][t]) << endl;
+						// (M+1), onde M é a amplitude e, portanto, (M+1) é um valor grande o suficiente para evitar os extremos
+						model.add(produtoEscalar >= b[pai]-((M+1)*(1-z[i][t]))); // M = amplitude absoluta
+						//cerr << "Adicionado com sucesso." << endl;
+					}
+					*/
 					model.add(produtoEscalar >= b[pai]-(1-z[i][t]));
 
 				}
@@ -754,6 +886,29 @@ int main(int argc, char** argv){
 						epsilonCurr += a[j][pai] * epsilons[j];
 					}
 
+					/*
+					if(normalizar) {
+						// Haveria um possível erro nos parênteses do lado esquerdo da inequação?
+						//model.add(produtoEscalar+epsilonCurr <= b[pai]+((1+M)*(1-z[i][t]))); // M = amplitude absoluta
+						//model.add(produtoEscalar+epsilonCurr <= b[pai]+((1+M)*(1-z[i][t]))); // M = amplitude absoluta
+						model.add(produtoEscalar+epsilon <= b[pai]+((1+M)*(1-z[i][t]))); // M = amplitude absoluta
+					}
+					else {
+						// (M+1), onde M é a amplitude e, portanto, (M+1) é um valor grande o suficiente para evitar os extremos
+						//model.add(produtoEscalar+epsilonCurr <= b[pai]+(M+1)*(1-z[i][t])); // M = amplitude absoluta
+						//model.add(produtoEscalar+epsilonCurr <= b[pai]+(M+1)*(1-z[i][t])); // M = amplitude absoluta
+						model.add(produtoEscalar+epsilon <= b[pai]+(M+1)*(1-z[i][t])); // M = amplitude absoluta
+					}
+					*/
+					//model.add(produtoEscalar < b[pai]+((M)*(1-z[i][t]))); // Lógica sem PLI
+
+					/**
+					 * a) 0.2 <= 0.5 // Tem que ser satisfeito
+					 *
+					 * b) 0.4999+epsilon <= 0.5 // Também tem que ser satisfeito
+					 *
+					 * c) 0.5+epsilon <= 0.5 // Essa sim não pode ser satisfeita
+					 */
 					model.add(produtoEscalar+epsilon <= b[pai]+((M)*(1-z[i][t]))); // M = amplitude absoluta
 
 					/**
@@ -866,6 +1021,11 @@ int main(int argc, char** argv){
 	if(DISPLAY_OUTPUTS) { cplex.out() << "Optimal value: " << cplex.getObjValue() << endl; }
 
 	if(DISPLAY_OUTPUTS) { cout << endl << " ==================================================" << endl << endl; }
+
+	//ofstream treeFile;
+	//treeFile.open(datasets+"Iris/Trees/Iris70.csv");
+	//vector<vector<double>> treeFileContent();
+
 
 	// Mostrando em quais parâmetros cada nós se separou
 	// Para todos os elementos
