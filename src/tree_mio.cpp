@@ -48,6 +48,19 @@ int getRightChild(int t) {
 	return 2*t+2;
 }
 
+// Retorna o último nó mais à direita de um nó t
+int getLastRightChild(int t, int maxNos) {
+	int child = getRightChild(t);
+
+	// Caso base (parada)
+	if(child > maxNos) {
+		return t;
+	}
+
+	// Passo recursivo
+	return getLastRightChild(child, maxNos);
+}
+
 // Retorna o nó pai de um nó filho
 int getParent(int t) {
 	return ceil((double) t/2)-1;
@@ -755,6 +768,7 @@ int main(int argc, char** argv){
 					}
 
 					model.add(produtoEscalar+epsilon <= b[pai]+((M)*(1-z[i][t]))); // M = amplitude absoluta
+					//model.add(produtoEscalar+epsilonCurr <= b[pai]+((M)*(1-z[i][t]))); // M = amplitude absoluta
 
 					/**
 					 * epsilon: 0.1
@@ -763,7 +777,7 @@ int main(int argc, char** argv){
 					 * 0.5 <= 0.5
 					 *
 					 */
-									}
+				}
 			}
 
 			//cerr << pai << ", ";
@@ -822,6 +836,34 @@ int main(int argc, char** argv){
 			model.add(L[f] <= (totalElementosEmCadaFolha[f]-N[k][f])+(n*(c[k][f])));
 		}
 	}
+
+
+
+	/**
+	 * Esta regra não está no artigo e está sendo imposta pelos desenvolvedores.
+	 * A regra diz que, se um um nó faz divisão, deve haver ao menos uma folha na
+	 * subárvore esquerda e uma folha na subárvore direita.
+	 * Obs: Se existe apenas uma folha na subárvore descendente em qualquer um dos lados,
+	 * esta folha é o nó mais à direita da subárvore.
+	 * @date 23/10/2023
+	 */
+	for(int t = 0; t < totalBranches; t++) {
+		IloInt nohMaisAaDireitaSubarvoreEsquerda;
+		IloInt nohMaisAaDireitaSubarvoreDireita;
+
+		nohMaisAaDireitaSubarvoreEsquerda = getLastRightChild(getLeftChild(t), maxNos);
+		nohMaisAaDireitaSubarvoreDireita = getLastRightChild(getRightChild(t), maxNos);
+
+		// Imprimindo os valores
+		cout 	<< "t: " << t << "   "
+				<< "último nó da sub. esq: " << nohMaisAaDireitaSubarvoreEsquerda << "   "
+				<< "| último nó da sub. dir: " << nohMaisAaDireitaSubarvoreDireita
+				<< endl;
+
+		model.add(d[t] <= l[nohMaisAaDireitaSubarvoreEsquerda]);
+		model.add(d[t] <= l[nohMaisAaDireitaSubarvoreDireita]);
+	}
+
 
 	// Inicializando o vetor de contagem de elementos de cada classe
 	for(int k = 0; k < K; k++) {
