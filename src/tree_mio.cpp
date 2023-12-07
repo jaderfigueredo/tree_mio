@@ -13,6 +13,8 @@
 ILOSTLBEGIN
 
 #define DEBUG 0
+#define BRANCH "galho"
+#define LEAF "folha"
 
 // Os valores são os índices do array que guardará os dados estatísticos
 #define NOS_UTEIS 0
@@ -29,14 +31,16 @@ int totais[N_TOTAIS];
 using namespace std;
 
 int DISPLAY_OUTPUTS = 1;
-string datasets = "";
-string fileName = datasets+"Iris.csv";
+
+string datasets = "csv/";
+string fileName = datasets+"iris.norm.csv";
 string fileNameTrainingData = "training-data-file.csv";
 vector<string> problemClasses;
 
 
 typedef IloArray<IloIntVarArray> IloIntVarArray2;
 typedef IloArray<IloBoolVarArray> IloBoolVarArray2;
+
 
 // Retorna o índice do filho esquerdo
 int getLeftChild(int t) {
@@ -63,7 +67,18 @@ int getLastRightChild(int t, int maxNos) {
 
 // Retorna o nó pai de um nó filho
 int getParent(int t) {
-	return ceil((double) t/2)-1;
+	return ceil((float) t/2)-1;
+}
+
+// Retorna o nível do nó calculado através do seu índice (0,1,...,n) na árvore
+int getLevelFromIndex(int index) {
+	// Caso base
+	if(index == 0) {
+		return 0;
+	}
+
+	// Passo recursivo
+	return 1+getLevelFromIndex(getParent(index));
 }
 
 // Encontrar uma string em um vector<string>
@@ -86,7 +101,7 @@ int findStringInVector(string const _key, vector<string> list) {
 void preOrder2(int nElements,
 			int pAttributes,
 			int kClasses,
-			vector<vector<double>> x,
+			vector<vector<float>> x,
 			int maxNos,
 			int firstLeaf,
 			IloBoolVarArray2 a,
@@ -95,6 +110,7 @@ void preOrder2(int nElements,
 			IloBoolVarArray2 z,
 			IloCplex cplex,
 			fstream &treeSettingsStream,
+			IloIntVarArray2 N,
 			int currentNode = 0,
 			int indent = 0,
 
@@ -112,20 +128,22 @@ void preOrder2(int nElements,
 		}
 
 		// Adicionando detalhes do nó (se galho ou folha)
-		string kindNode = "galho";
+		string kindNode = BRANCH;
 		int classNode = -1;
 		int param = -1;
-		double bound = -1;
+		float bound = -1;
 		string separator = " ";
+		bool isValidNode = false;
 
 		// Se for nó folha
 		if(currentNode >= firstLeaf && currentNode < maxNos) {
-			kindNode = "folha";
+			kindNode = LEAF;
 
 			// Obter a classe atribuída ao nó folha
 			for(int k = 0; k < kClasses; k++) {
 				if(cplex.getValue(c[k][currentNode] >= 0.5)) {
 					classNode = k;
+					isValidNode = true;
 					break;
 				}
 			}
@@ -138,10 +156,11 @@ void preOrder2(int nElements,
 				}
 			}
 			bound = cplex.getValue(b[currentNode]);
+			isValidNode = true;
 		}
 
 
-		// Se for um nó válido, ou seja, nó galho ou nó classe
+		// Se for um nó válido, ou seja, nó galho ou nó folha
 		if(param != -1 || classNode != -1) {
 			if(DISPLAY_OUTPUTS) { cout << endl; }
 
@@ -154,18 +173,53 @@ void preOrder2(int nElements,
 			totais[NOS_UTEIS]++;
 
 			// Imprime o nó
-			if(DISPLAY_OUTPUTS) { cout << "(Nó: " << indexNode << "\tTipo: " << kindNode << "\t"; }
+			if(DISPLAY_OUTPUTS) { cout << "(" << indexNode << " " << kindNode; }
 			treeSettingsStream << "(" << separator << indexNode << separator << kindNode << separator;
 
-			if(kindNode.compare("galho") == 0) {
-				if(DISPLAY_OUTPUTS) { cout << "param. " << param << "\tLimiar: " << setprecision(7) << bound; }
-				treeSettingsStream << param << separator << setprecision(7) << bound << separator;
+			if(kindNode.compare(BRANCH) == 0 && isValidNode) {
+				if(DISPLAY_OUTPUTS) { cout << " | feat: " << param << " | Threshold: " << setprecision(16) << bound << " | "; }
+				treeSettingsStream << param << separator << setprecision(32) << bound << separator;
 				totais[GALHOS]++;
 			}
-			else {
-				if(DISPLAY_OUTPUTS) { cout << "Classe: " << setprecision(0) << classNode << "_" << problemClasses[classNode]; }
-				treeSettingsStream << setprecision(0) << classNode << separator;
+			else if(isValidNode) {
+				if(DISPLAY_OUTPUTS) { cout << " | class: " << problemClasses[classNode]; }
+				treeSettingsStream << int(classNode) << separator;
 				totais[FOLHAS]++;
+
+				vector<int> elementsOfClasses(kClasses);
+				int totalElementos = 0;
+				int totalAcertos = 0;
+				int totalErros = 0;
+
+				for(int k_class = 0; k_class < kClasses; k_class++) {
+					elementsOfClasses[k_class] = cplex.getValue(N[k_class][currentNode]);
+					totalElementos += cplex.getValue(N[k_class][currentNode]);
+					if(classNode == k_class) {
+						totalAcertos = cplex.getValue(N[k_class][currentNode]);
+					}
+				}
+
+				totalErros = totalElementos - totalAcertos;
+
+				if(DISPLAY_OUTPUTS) {
+					cout << " | " << totalElementos << " elementos";
+					cout << " | " << "Acerto: " << std::setprecision(2) << float(totalAcertos)/totalElementos*100 << "%";
+				}
+
+				// Imprimir as quantidades de elementos da ŕvore
+				for(int k_class = 0; k_class < kClasses; k_class++) {
+					cout << endl;
+					for(int i = 0; i < indent; i++) {
+						if(DISPLAY_OUTPUTS) { cout << "  "; }
+					}
+
+					if(DISPLAY_OUTPUTS) {
+						cout << " Classe ["<<k_class<<"] = "
+								<< elementsOfClasses[k_class] << " elementos\t("
+								<< std::setprecision(2)
+								<< float(elementsOfClasses[k_class])/totalElementos*100 << "%)";
+					}
+				}
 			}
 
 			// Se é um nó válido, é um nó pai válido, portanto atualiza-se o indice do nó pai para os próximos que será o nó corrente.
@@ -199,15 +253,15 @@ void preOrder2(int nElements,
 		}
 
 		// Vai para o filho esquerdo
-		preOrder2(nElements, pAttributes, kClasses, x, maxNos, firstLeaf, a, b, c, z, cplex, treeSettingsStream, getLeftChild(currentNode), indent+1, indexLeftChild, indexNodeParent);
+		preOrder2(nElements, pAttributes, kClasses, x, maxNos, firstLeaf, a, b, c, z, cplex, treeSettingsStream, N, getLeftChild(currentNode), indent+1, indexLeftChild, indexNodeParent);
 		// Vai para o filho direito
-		preOrder2(nElements, pAttributes, kClasses, x, maxNos, firstLeaf, a, b, c, z, cplex, treeSettingsStream, getRightChild(currentNode), indent+1, indexRightChild, indexNodeParent);
+		preOrder2(nElements, pAttributes, kClasses, x, maxNos, firstLeaf, a, b, c, z, cplex, treeSettingsStream, N, getRightChild(currentNode), indent+1, indexRightChild, indexNodeParent);
 
 		if(param == -1 && classNode == -1) {
 			return;
 		}
 
-		if(kindNode.compare("galho") == 0) {
+		if(kindNode.compare(BRANCH) == 0) {
 			if(DISPLAY_OUTPUTS) { cout << endl; }
 			for(int i = 0; i < indent; i++) {
 				if(DISPLAY_OUTPUTS) { cout << "  "; }
@@ -221,11 +275,13 @@ void preOrder2(int nElements,
 
 
 
+
 /**
  * A cada execução, este método é chamado para escrever os dados de execução em um arquivo de
  * histórico de execução para fins de análise e estatística.
  */
 int saveTrainingDataStart(
+		string idDT,
 		int printOutputs,
 		string datasetName,
 		int nElements,
@@ -233,7 +289,7 @@ int saveTrainingDataStart(
 		int nClasses,
 		string classesInLine,
 		int	maxTreeHeigth,
-		double alpha,
+		float alpha,
 		int minLeafElements,
 		int timeLimit,
 		int normalizar) {
@@ -248,27 +304,28 @@ int saveTrainingDataStart(
 		cerr << endl << "Erro ao abrir o arquivo \"" << fileNameTrainingData << "\"" << endl << endl;
 		return 0;
 	}
-	if(DISPLAY_OUTPUTS) { cout << endl << "Arquivo " << fileNameTrainingData << " aberto com sucesso." << endl << endl;}
+	if(DISPLAY_OUTPUTS && DEBUG) { cout << endl << "Arquivo " << fileNameTrainingData << " aberto com sucesso." << endl << endl;}
 	string SEP = ",";
 	string line = "";
 
 	// Se o arquivo estiver vazio, criar a primeira linha com os cabeçalhos das colunas
 	if(dataTrainingFile.tellg() == 0) {
-		line = "printOutputs"+SEP+"datasetName"+SEP+"nElements"+SEP+"nAttributes"+SEP+
+		line = "IDbegin"+SEP+"printOutputs"+SEP+"datasetName"+SEP+"nElements"+SEP+"nAttributes"+SEP+
 				"nClasses"+SEP+"classesInLine"+SEP+"maxTreeHeigth"+SEP+"alpha"+SEP+
-				"minLeafElements"+SEP+"timeLimit"+SEP+"totalElementos"+SEP+"totalGalhos"+SEP+
-				"totalFolhas"+SEP+"alturaReal"+SEP+"totalErros"+SEP+"totalAcertos"+SEP+"spentTime"+SEP+"normalizar";
+				"minLeafElements"+SEP+"timeLimit"+SEP+"normalizar"+SEP+"totalElementos"+SEP+"totalGalhos"+SEP+
+				"totalFolhas"+SEP+"alturaReal"+SEP+"totalErros"+SEP+"totalAcertos"+SEP+"spentTime"+SEP+
+				"spentTimeStr"+SEP+"nVariaveisModelo"+SEP+"Status"+SEP+"objValue"+SEP+"Gap"+SEP+"IDend";
 
 		if(DISPLAY_OUTPUTS) { cout << line << endl;}
 		dataTrainingFile << line;
 	}
 
 	// Gravando os dados de início da execução.
-	line = std::to_string(printOutputs)+SEP+datasetName+SEP+std::to_string(nElements)+SEP+
+	line = idDT+SEP+std::to_string(printOutputs)+SEP+datasetName+SEP+std::to_string(nElements)+SEP+
 			std::to_string(nAttributes)+SEP+std::to_string(nClasses)+SEP+"\""+classesInLine+"\""+SEP+
 			std::to_string(maxTreeHeigth)+SEP+std::to_string(alpha)+SEP+std::to_string(minLeafElements)+SEP+
 			std::to_string(timeLimit)+SEP+std::to_string(normalizar);
-	if(DISPLAY_OUTPUTS) { cout << line << endl << endl;}
+	if(DISPLAY_OUTPUTS && DEBUG) { cout << line << endl << endl;}
 	dataTrainingFile << endl << line;
 
 	dataTrainingFile.close();
@@ -286,7 +343,13 @@ int saveTrainingDataEnd(
 		int alturaReal,
 		int totalErros,
 		int totalAcertos,
-		double spentTime) {
+		unsigned long int spentTime,
+		string spentTimeStr,
+		long int nCols,
+		string status,
+		float objValue,
+		float gap,
+		string idDT) {
 
 	// Abrindo o arquivo e definindo o separador CSV
 	fstream dataTrainingFile;
@@ -305,14 +368,39 @@ int saveTrainingDataEnd(
 	line = SEP+std::to_string(totalElementos)+SEP+std::to_string(totalGalhos)+SEP+
 			std::to_string(totalFolhas)+SEP+std::to_string(alturaReal)+SEP+
 			std::to_string(totalErros)+SEP+std::to_string(totalAcertos)+SEP+
-			std::to_string(spentTime);
+			std::to_string(spentTime)+SEP+spentTimeStr+SEP+std::to_string(nCols)+SEP+
+			status+SEP+std::to_string(objValue)+SEP+std::to_string(gap)+SEP+idDT;
 
-	if(DISPLAY_OUTPUTS) { cout << line << endl << endl;}
+	if(DISPLAY_OUTPUTS && DEBUG) { cout << line << endl << endl;}
 	dataTrainingFile << line;
 
 	dataTrainingFile.close();
 	return 1;
 }
+
+
+// Function to convert IloCplex::CplexStatus to string
+std::string getStatusString(IloAlgorithm::Status status) {
+    switch (status) {
+		case IloAlgorithm::Optimal:
+			return "Optimal";
+		case IloAlgorithm::Feasible:
+			return "Feasible";
+		case IloAlgorithm::Infeasible:
+			return "Infeasible";
+		case IloAlgorithm::InfeasibleOrUnbounded:
+			return "Infeasible or Unbounded";
+		case IloAlgorithm::Unbounded:
+			return "Unbounded";
+		case IloAlgorithm::Error:
+			return "Error";
+		case IloAlgorithm::Unknown:
+			return "Unknown";
+		default:
+			return "Other Else";
+    }
+}
+
 
 
 int main(int argc, char** argv){
@@ -324,7 +412,7 @@ int main(int argc, char** argv){
 
 	// Calculando o tempo gasto
 	auto startTime = std::chrono::high_resolution_clock::now();
-	auto endTime = startTime;
+	//auto endTime = startTime;
 
 
 
@@ -337,14 +425,14 @@ int main(int argc, char** argv){
 		if(argc == 1) {
 			cout << "Você também pode passar os seguintes parametros:" << endl;
 			cout << "[1] Mostrar saídas do programa (1 - Sim, 0 - não) " << endl;
-			cout << "[2] arquivo do dataset (padrão: Iris.csv)" << endl;
+			cout << "[2] arquivo do dataset (padrão: csv/iris.norm.csv)" << endl;
 			cout << "[3] N. atributos (padrão: 4)" << endl;
 			cout << "[4] N. classes (padrão: 3) " << endl;
-			cout << "[5] Classes separadas por vírgula ('Iris-setosa,Iris-versicolor,Iris-virginica')" << endl;
+			cout << "[5] Classes separadas por vírgula ('0,1,2')" << endl;
 			cout << "[6] altura (padrao: 2)" << endl;
 			cout << "[7] alpha (padrao: 0.3)" << endl;
-			cout << "[8] Min. elementos na folha (padrao: 2)" << endl;
-			cout << "[9] Tempo max. exec.(padrao: 180 s)" << endl;
+			cout << "[8] Min. elementos na folha (padrao: 1)" << endl;
+			cout << "[9] Tempo max. exec.(padrao: 0h2m)" << endl;
 			cout << "[10] Normalizado (1- Sim (padrao), 0 - Não)" << endl;
 			cout << endl;
 			cout << "Deseja continuar mesmo assim? [S ou n]: ";
@@ -385,7 +473,7 @@ int main(int argc, char** argv){
 	if(DISPLAY_OUTPUTS) { cout << "Num. de classes do problema:\t" << K << endl; }
 
 	// Recebe a lista de classes possíveis para o problema
-	string classesInLine = (argc > 5) ? string(argv[5]) : "Iris-setosa,Iris-versicolor,Iris-virginica";
+	string classesInLine = (argc > 5) ? string(argv[5]) : "0,1,2";
 	if(DISPLAY_OUTPUTS) { cout << "5 - Classes separadas por vírgula:\t" << classesInLine << endl; }
 
 	// Recebe a altura da árvore por parâmetro quando é passada
@@ -393,19 +481,20 @@ int main(int argc, char** argv){
 	if(DISPLAY_OUTPUTS) { cout << "altura:\t" << altura << endl; }
 
 	// Recebe o alpha por parâmetro quando é passado
-	char* ptrdouble;
-	double alpha = (argc > 7) ? strtod(argv[7], &ptrdouble) : 0.3;
+	char* ptrfloat;
+	float alpha = (argc > 7) ? strtod(argv[7], &ptrfloat) : 0.3;
 	if(DISPLAY_OUTPUTS) { cout << "alpha:\t" << alpha << endl; }
 
 	// Recebe a quantidade mínima de cad folha quando é passada
-	int nMin  = (argc > 8) ? atoi(argv[8]) : 2;
+	int nMin  = (argc > 8) ? atoi(argv[8]) : 1;
 	if(DISPLAY_OUTPUTS) { cout << "Min. elementos na folha:\t" << nMin << endl; }
 
 	// Recebe o tempo máximo para execução do programa em segundos
 	string maxTimeStr  = (argc > 9) ? argv[9] : "0h2m";
 
 
-	int horas, minutos;
+	unsigned long int horas, minutos, segundos, milisegundos;
+	string spentTimeStr;
 	char charH, charM;
 	std::istringstream iss(maxTimeStr);
 	iss >> horas >> charH >> minutos >> charM;
@@ -415,27 +504,50 @@ int main(int argc, char** argv){
 		return 1;
 	}
 
-	if(DISPLAY_OUTPUTS) {
-		cout << "Horas: " << horas << "\t | Minutos: " << minutos << endl;
-	}
-
 	int maxTime = (60*60)*horas + 60*minutos;
 
-	if(DISPLAY_OUTPUTS) { cout << "Tempo max. exec.:\t" << maxTime << " sec." << endl; }
+	if(DISPLAY_OUTPUTS) { cout << "Tempo max. exec.:\t" << maxTime << " sec." << "\t(" << horas << " horas e " << minutos << "minutos)" << endl; }
 
 	// Recebe o tempo máximo para execução do programa em segundos
 	int normalizar  = (argc > 10) ? atoi(argv[10]) : 1;
 	if(DISPLAY_OUTPUTS) { cout << "Normalizar:\t" << normalizar << endl; }
 
 
+	if(pow(2,altura) < K) {
+		if(DISPLAY_OUTPUTS) {
+			cerr << "Uma árvore de altura " << altura << " possui a quantidade de folhas ("
+					<< pow(2,altura) << ") menor que a quantidade de classes ("
+					<< K << "). Isso pode gerar uma classificação insuficiente." << endl;
+		}
+	}
+
+
+	// Get the current timepoint
+	// auto now = std::chrono::system_clock::now();
+	auto clock = std::chrono::high_resolution_clock::now();
+	auto timeNow = std::chrono::duration_cast<std::chrono::milliseconds>(clock.time_since_epoch());
+	unsigned long int ID = static_cast<int>(timeNow.count());
+
+
+	// Get the current timepoint
+	auto now = std::chrono::system_clock::now();
+	// Convert the timepoint to a time_t object
+	std::time_t time = std::chrono::system_clock::to_time_t(now);
+	// Convert the time_t to a tm struct in local time
+	std::tm localTime = *std::localtime(&time);
+	// Format and print the current date and time
+
+	std::ostringstream formattedTime;
+	formattedTime << std::put_time(&localTime, "%Y-%m-%d %H:%M:%S:");
+	// Get the string representation
+	std::string idDT = formattedTime.str();
 
 
 	// Gravando dados de execução do programa
-	saveTrainingDataStart(DISPLAY_OUTPUTS,fileName,-1,p,K,classesInLine,altura,alpha,nMin,maxTime,normalizar);
-
+	saveTrainingDataStart(to_string(ID), DISPLAY_OUTPUTS,fileName,-1,p,K,classesInLine,altura,alpha,nMin,maxTime,normalizar);
 
 	// CARREGANDO DADOS
-	vector < vector < double > > x;
+	vector < vector < float > > x;
 	fstream arquivo;
 	arquivo.open(fileName, fstream::in);
 	/* Testando leitura de arquivo */
@@ -471,8 +583,8 @@ int main(int argc, char** argv){
 	string cl;
 	int n; // = 150; // Total de elementos
 	int	somaClasses[K]; // Quantidade de elementos associados a cada classe K
-	double minValueAttribute = 0; // Valor mínimo de um atributo
-	double maxValueAttribute = 0; // Valor máximo de um atributo
+	float minValueAttribute = 0; // Valor mínimo de um atributo
+	float maxValueAttribute = 0; // Valor máximo de um atributo
 
 
 	// LENDO ARQUIVO CSV SEM ESPAÇAMENTO DEPOIS DA VÍRGULA
@@ -491,7 +603,7 @@ int main(int argc, char** argv){
 	getline(arquivo, line); // descartando a primeira linha
 	for(int i = 0; !arquivo.eof(); i++) {
 		//x[i].resize(p+1);
-		vector<double> attributes(p);
+		vector<float> attributes(p);
 
 		// Lê uma linha do arquivo
 		line.clear();
@@ -548,8 +660,23 @@ int main(int argc, char** argv){
 
 	if(DISPLAY_OUTPUTS) { cout << "n:\t" << n << endl; }
 
-	if(DISPLAY_OUTPUTS) { cout << "Matriz de dados original sem o ID" << endl; }
-	for(unsigned int i = 0; i < x.size(); i++) {
+	if(DISPLAY_OUTPUTS) { cout << "Dataset" << endl; }
+
+	unsigned int endOfBegin = (x.size() > 5) ? 5 : x.size();
+	unsigned int startOfEnd = endOfBegin+1;
+	startOfEnd = (x.size()-5 > endOfBegin) ? x.size()-5 : startOfEnd;
+
+	for(unsigned int i = 0; i < endOfBegin; i++) {
+		if(DISPLAY_OUTPUTS) { cout << i << "\t"; }
+		for(unsigned int j = 0; j < x[i].size(); j++) {
+			if(DISPLAY_OUTPUTS) { cout << x[i][j] << "\t"; }
+		}
+		if(DISPLAY_OUTPUTS) { cout << endl; }
+	}
+
+	if (DISPLAY_OUTPUTS and (startOfEnd > endOfBegin)) { cout << "\t..." << endl;}
+
+	for(unsigned int i = startOfEnd; i < x.size(); i++) {
 		if(DISPLAY_OUTPUTS) { cout << i << "\t"; }
 		for(unsigned int j = 0; j < x[i].size(); j++) {
 			if(DISPLAY_OUTPUTS) { cout << x[i][j] << "\t"; }
@@ -593,7 +720,7 @@ int main(int argc, char** argv){
 	// A amplitude M é 1, mas convencionou-se em M = 2
 	maxValueAttribute = 1;
 	minValueAttribute = 0;
-	double M = 2; // Professor acha que M deve ser maior que 1
+	float M = 2; // Professor acha que M deve ser maior que 1
 
 	// Imprimindo valores mínimo e máximo dos atributos
 	if(DISPLAY_OUTPUTS) {
@@ -670,7 +797,7 @@ int main(int argc, char** argv){
 	model.add(d[0] == 1);
 	// Restrição 5: para os demais nós.
 	for(int t = 1; t < totalBranches;t++) {
-		if(DISPLAY_OUTPUTS) {
+		if(DISPLAY_OUTPUTS && DEBUG) {
 			cout << "t: " << t << endl;
 			cout << "getparent(t): " << getParent(t) << endl;
 		}
@@ -710,7 +837,7 @@ int main(int argc, char** argv){
 	// Encontrando o epsilon, que é a menor diferença entre dois atributos que não for zero
 	// Para_todo elemento
 	double epsilon = M; // valor suficientemente grande para forçar haver uma diferença entre 2 atributos que seja menor que ele.
-	vector<double> epsilons(p);
+	vector<float> epsilons(p);
 	for(int j = 0; j < p; j++) {
 		epsilons[j] = M; // espsilon começa com M, pois M é a maior diferença entre todos os valores de atributos
 	}
@@ -905,7 +1032,7 @@ int main(int argc, char** argv){
 	}
 
 	IloExpr funcaoObjetivo(env);
-	//double alpha = 0.3;
+	//float alpha = 0.3;
 	// Definindo a ponderação da função objetivo
 	funcaoObjetivo = (1.0/quantidadeElementosMaiorClasse) * somaDosErros + (alpha * IloSum(d));
 
@@ -916,16 +1043,57 @@ int main(int argc, char** argv){
 	cplex.setParam(IloCplex::TiLim, maxTime);
 	cplex.extract(model);
 
-	cplex.solve();
+
+	/**
+	 * Apagar se não resolver
+	// Criando variáveis de contagem de números do modelo
+	cplex.setParam(IloCplex::CutCliques, 2);
+	cplex.setParam(IloCplex::CutCovers, 2);
+	cplex.setParam(IloCplex::CutImplBd, 2);
+	cplex.setParam(IloCplex::CutFlowPaths, 2);
+	cplex.setParam(IloCplex::MIRCuts, 2);
+	*/
+
+	bool isModelSolved = cplex.solve();
 
 	if(DISPLAY_OUTPUTS) { cplex.out() << "Solution status: " << cplex.getStatus() << endl; }
 	if(DISPLAY_OUTPUTS) { cplex.out() << "Optimal value: " << cplex.getObjValue() << endl; }
+
+	//IloInt nVariaveisModelo = cplex.getNcols();
+	if(DISPLAY_OUTPUTS) { cplex.out() << "N. Variables: " << cplex.getNcols() << endl; }
+
+	// GAP
+	if(DISPLAY_OUTPUTS) { cplex.out() << "GAP: " << cplex.getMIPRelativeGap() << endl; }
+
+
+	if(DISPLAY_OUTPUTS) { cout << endl << "-----------------------------" << endl; }
+
+	IloAlgorithm::Status statusIloAlg = cplex.getStatus();
+	string status = isModelSolved ? getStatusString(statusIloAlg) : "--";
+
+	IloNum objValueIloNum = cplex.getObjValue();
+	float objValue = isModelSolved ? static_cast<float>(objValueIloNum) : -1.0;
+
+	IloInt nColsIloNum = cplex.getNcols();
+	long int nCols = isModelSolved ? static_cast<int>(nColsIloNum) : -1;
+
+	IloNum gapIloNum = cplex.getMIPRelativeGap();
+	float gap = isModelSolved ? static_cast<float>(gapIloNum) : -1.0;
+
+
+	if(DISPLAY_OUTPUTS) {
+		cout << "StatusStr:\t" << status << endl;
+		cout << "objValue:\t" << objValue << endl;
+		cout << "N. cols:\t" << nCols << endl;
+		cout << "Gap:\t\t" << gap*100 << "%" <<endl;
+	}
+
 
 	if(DISPLAY_OUTPUTS) { cout << endl << " ==================================================" << endl << endl; }
 
 	// Mostrando em quais parâmetros cada nós se separou
 	// Para todos os elementos
-	if(DISPLAY_OUTPUTS) {
+	if(DISPLAY_OUTPUTS && DEBUG) {
 		for(int i = 0; i < firstLeaf; i++) {
 			// Para todos os parâmetros dos elementos
 			for(int j = 0; j < p; j++) {
@@ -937,7 +1105,7 @@ int main(int argc, char** argv){
 		}
 	}
 
-	if(DISPLAY_OUTPUTS) {
+	if(DISPLAY_OUTPUTS && DEBUG) {
 		// Para todas as folhas
 		for(int f = firstLeaf; f < maxNos; f++) {
 			// Para todas as classes
@@ -950,7 +1118,7 @@ int main(int argc, char** argv){
 	}
 
 
-	if(DISPLAY_OUTPUTS) {
+	if(DISPLAY_OUTPUTS && DEBUG) {
 		// Para todas as folhas
 		for(int f = firstLeaf; f < maxNos; f++) {
 			cout << "Folha " << f << endl;
@@ -970,12 +1138,12 @@ int main(int argc, char** argv){
 		float	 	 taxaErros = 0.0;
 
 
-		if(DISPLAY_OUTPUTS) { cout << "Folha: " << f << "\t"; }
+		if(DISPLAY_OUTPUTS && DEBUG) { cout << "Folha: " << f << "\t"; }
 		// Mostrar a classe atribuída ao nó folha
 		int k = 0;
 		for(; k < K; k++) {
 			if(cplex.getValue(c[k][f] >= 0.5)) {
-				if(DISPLAY_OUTPUTS) { cout << "Classe: " << k << endl; }
+				if(DISPLAY_OUTPUTS && DEBUG) { cout << "Classe: " << k << endl; }
 				break;
 			}
 		}
@@ -987,30 +1155,30 @@ int main(int argc, char** argv){
 			int aux = (int) cplex.getValue(z[e][f]);
 			if(aux >= 0.5) {
 				// Mostra qual a classe do elemento
-				if(DISPLAY_OUTPUTS) { cout << counter << "\tElemento: " << e << "\tclasse: " << (int) x[e][p] << "\t"; }
+				if(DISPLAY_OUTPUTS && DEBUG) { cout << counter << "\tElemento: " << e << "\tclasse: " << (int) x[e][p] << "\t"; }
 
-				if(DISPLAY_OUTPUTS) { cout << "Classificou: "; }
+				if(DISPLAY_OUTPUTS && DEBUG) { cout << "Classificou: "; }
 				if(k == x[e][p]) {
-					if(DISPLAY_OUTPUTS) { cout << "Certo"; }
+					if(DISPLAY_OUTPUTS && DEBUG) { cout << "Certo"; }
 				}
 				else {
-					if(DISPLAY_OUTPUTS) { cout << "Errado"; }
+					if(DISPLAY_OUTPUTS && DEBUG) { cout << "Errado"; }
 					quantidadeErros++;
 				}
-				if(DISPLAY_OUTPUTS) { cout << endl; }
+				if(DISPLAY_OUTPUTS && DEBUG) { cout << endl; }
 			}
 		}
 
 		// Se houver elementos neste nó f
 		if((int) cplex.getValue(totalElementosEmCadaFolha[f]) > 0) {
 			// Porcentagem de acertos e erros
-			if(DISPLAY_OUTPUTS) { cout << setprecision(2); }
+			if(DISPLAY_OUTPUTS && DEBUG) { cout << setprecision(2); }
 			taxaErros = quantidadeErros * 100 / (int) cplex.getValue(totalElementosEmCadaFolha[f]);
-			if(DISPLAY_OUTPUTS) { cout << "Acertos:\t" << setprecision(7) << (int) cplex.getValue(totalElementosEmCadaFolha[f]) - quantidadeErros << "\t" << 100 - taxaErros << "%" << endl; }
-			if(DISPLAY_OUTPUTS) { cout << "Erros:\t\t"	 << quantidadeErros << "\t" << taxaErros << "%" << endl; }
+			if(DISPLAY_OUTPUTS && DEBUG) { cout << "Acertos:\t" << setprecision(7) << (int) cplex.getValue(totalElementosEmCadaFolha[f]) - quantidadeErros << "\t" << 100 - taxaErros << "%" << endl; }
+			if(DISPLAY_OUTPUTS && DEBUG) { cout << "Erros:\t\t"	 << quantidadeErros << "\t" << taxaErros << "%" << endl; }
 		}
 
-		if(DISPLAY_OUTPUTS) { cout << endl << endl; }
+		if(DISPLAY_OUTPUTS && DEBUG) { cout << endl << endl; }
 
 		// Contando a quantidade total de erros
 		totais[ERROS] += quantidadeErros;
@@ -1022,7 +1190,7 @@ int main(int argc, char** argv){
 	string treeSettingsFile = "tree-settings.txt";
 	fstream treeSettingsStream;
 	treeSettingsStream.open(treeSettingsFile, fstream::out);
-	preOrder2(n, p, K, x, maxNos, firstLeaf, a, b, c, z, cplex, treeSettingsStream, 0, 0, 0);
+	preOrder2(n, p, K, x, maxNos, firstLeaf, a, b, c, z, cplex, treeSettingsStream, N, 0, 0, 0);
 	treeSettingsStream.close();
 
 
@@ -1035,7 +1203,7 @@ int main(int argc, char** argv){
 		// Imprimindo os galhos
 		for(int branch = 0; branch < totalBranches; branch++) {
 
-			double splitValue = cplex.getValue(b[branch]);
+			float splitValue = cplex.getValue(b[branch]);
 
 			// Só imprimir nós galhos válidos
 			for(int attr = 0; attr < p; attr++){
@@ -1082,13 +1250,15 @@ int main(int argc, char** argv){
 
 
 
-
 	// DADOS DA EXECUÇÃO COMPLETA
-	endTime = std::chrono::high_resolution_clock::now();
+	auto endTime = std::chrono::high_resolution_clock::now();
 
-	auto spentTimeChrono = std::chrono::duration_cast<std::chrono::seconds>(endTime - startTime);
-	int spentTime = spentTimeChrono.count();
-	double doubleValue = 0.0;
+	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
+	unsigned long int spentTime = duration.count();
+	float floatValue = 0.0;
+
+
+
 	if(DISPLAY_OUTPUTS) {
 		// Quantos nós totais (úteis)
 		cout << "Total elementos:\t" << x.size() << endl;
@@ -1099,23 +1269,77 @@ int main(int argc, char** argv){
 		// Altura real da árvore
 		cout << "Altura real:\t\t" << totais[ALTURA] << endl;
 		// Total erros
-		doubleValue = (double) (totais[ERROS] * 100) / x.size();
-		cout << "Total erros:\t\t" << totais[ERROS] << "\t(" << setprecision(3) << doubleValue << "%)" << endl;
+		floatValue = (float) (totais[ERROS] * 100) / x.size();
+		cout << "Total erros:\t\t" << totais[ERROS] << "\t(" << setprecision(3) << floatValue << "%)" << endl;
 		// Total acertos
-		doubleValue = (double) (totais[ACERTOS] * 100) / x.size();
-		cout << "Total acertos:\t\t" << totais[ACERTOS] << "\t(" << setprecision(3) << doubleValue << "%)" << endl;
-		// Porcentagem de erros
-		//cout << "Porcentagem erros:\t" << setprecision(3) << totais[ERROS] * 100 / x.size() << "%" << endl;
-		// Porcentagem de acertos
-		//cout << "Porcentagem acertos:\t" << setprecision(3) << totais[ACERTOS] * 100 / x.size() << "%" << endl;
-		// Tempo final
-		horas = int((spentTime/60)/60);
-		minutos = int((int(spentTime) % (60*60))/60);
-		int segundos = int(spentTime) % (60*60)%60;
-		cout << "Tempo gasto:\t\t" << setprecision(5) << horas << "h" << minutos << "m" << segundos << "s" << endl;
+		floatValue = (float) (totais[ACERTOS] * 100) / x.size();
+		cout << "Total acertos:\t\t" << totais[ACERTOS] << "\t(" << setprecision(3) << floatValue << "%)" << endl;
+
+
+		// Extract hours, minutes, seconds, and remaining milliseconds
+		auto hours = std::chrono::duration_cast<std::chrono::hours>(duration);
+		duration -= hours;
+
+		auto minutes = std::chrono::duration_cast<std::chrono::minutes>(duration);
+		duration -= minutes;
+
+		auto seconds = std::chrono::duration_cast<std::chrono::seconds>(duration);
+		duration -= seconds;
+
+		auto milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(duration);
+
+		horas = int(hours.count());
+		minutos = int(minutes.count());
+		segundos = int(seconds.count());
+		milisegundos = int(duration.count());
+		spentTimeStr = to_string(horas)+"h"+to_string(minutos)+"min"+to_string(segundos)+"s"+to_string(milisegundos)+"ms";
+		cout << "Tempo gasto:\t\t" << spentTimeStr << endl;
+
+
+
+		cout << endl;
+
+		/*
+
+		// Clique cuts applied (interget)
+		int numCliqueCuts = cplex.getNcuts(IloCplex::CutCliques);
+
+		// Number of solutions
+		int numSolutions = cplex.getSolnPoolNumSolns();
+		// Tem erro nessa maneira de obter a quantidade de soluções de um modelo
+
+		// Cover cuts aplied:
+		int numCoverCuts = cplex.getNcuts(IloCplex::CutCovers);
+
+		// Implied bounds cuts applied:
+		int numImpliedBoundCuts = cplex.getNcuts(IloCplex::CutImplBd);
+
+		// Flow cuts applied:
+		int numFlowCuts = cplex.getNcuts(IloCplex::CutFlowPaths);
+
+		// Mixed integer rounding cuts applied
+		int numMIRcuts = cplex.getNcuts(IloCplex::CutMIR);
+		*/
+
 	}
-	saveTrainingDataEnd(x.size(), totais[GALHOS], totais[FOLHAS], totais[ALTURA], totais[ERROS], totais[ACERTOS], spentTime);
+	saveTrainingDataEnd(
+			x.size(),
+			totais[GALHOS],
+			totais[FOLHAS],
+			totais[ALTURA],
+			totais[ERROS],
+			totais[ACERTOS],
+			spentTime,
+			spentTimeStr,
+			nCols,
+			status,
+			objValue,
+			gap,
+			to_string(ID)
+		);
+
 
 	return 1;
+
 
 }
