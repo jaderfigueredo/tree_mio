@@ -1370,7 +1370,7 @@ int main(int argc, char** argv){
 
 	// Check and create the directory
 	if (createDirectory(directoryPath)) {
-		string filePath = directoryPath + "/" + outputsFile;
+		string filePath = directoryPath + "_" + outputsFile;
 		string fileContent = results.str();
 		// Create the file
 		createFile(filePath, fileContent);
