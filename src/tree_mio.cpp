@@ -125,6 +125,7 @@ bool createFile(const string& filePath, const string& fileContent) {
 
 
 
+
 /**
  * Imprime a árvore com indentações e
  * Calcula alguns somatórios como:
@@ -226,10 +227,16 @@ void imprimirArvore(int nElements,
 				int totalErros = 0;
 
 				for(int k_class = 0; k_class < kClasses; k_class++) {
+
 					elementsOfClasses[k_class] = round(cplex.getValue(N[k_class][currentNode]));
-					totalElementos += round(cplex.getValue(N[k_class][currentNode]));
+					//cerr << std::fixed << std::setprecision(16);
+					//cerr << endl << "DEBUG:\t" << cplex.getValue(N[k_class][currentNode]) << " == " << elementsOfClasses[k_class];
+
+					totalElementos += elementsOfClasses[k_class];
+
+
 					if(classNode == k_class) {
-						totalAcertos = cplex.getValue(N[k_class][currentNode]);
+						totalAcertos += elementsOfClasses[k_class];
 					}
 				}
 
@@ -407,6 +414,7 @@ int saveTrainingDataEnd(
 	dataTrainingFile.close();
 	return 1;
 }
+
 
 
 // Function to convert IloCplex::CplexStatus to string
@@ -894,7 +902,7 @@ int main(int argc, char** argv){
 			for(int j = 0; j < p; j++) {
 				double difference = abs(x[i][j]-x[h][j]);
 				// Não atualizar o valor se a diferença entre dois atributos for zero.
-				if(difference >= 0.00000001) {
+				if(difference >= 0.0000000000001) {
 					epsilon = epsilon > difference ? difference : epsilon;
 					epsilons[j] = (epsilons[j] > difference) ? difference : epsilons[j];
 				}
@@ -1369,12 +1377,10 @@ int main(int argc, char** argv){
 			+".txt";
 
 	// Check and create the directory
-	if (createDirectory(directoryPath)) {
-		string filePath = directoryPath + "_" + outputsFile;
-		string fileContent = results.str();
-		// Create the file
-		createFile(filePath, fileContent);
-	}
+	string filePath = directoryPath + "_" + outputsFile;
+	string fileContent = results.str();
+	// Create the file
+	createFile(filePath, fileContent);
 
 
 
@@ -1440,6 +1446,4 @@ int main(int argc, char** argv){
 
 
 	return 1;
-
-
 }
