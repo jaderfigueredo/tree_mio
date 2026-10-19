@@ -22,7 +22,8 @@ interpretabilidade
 
 # Citações
 Como citar este modelo
-####Modelos de aprendizado de máquina para árvore de decisão interpretável: otimização vs heurística
+
+#### Modelos de aprendizado de máquina para árvore de decisão interpretável: otimização vs heurística
 ```
 @article{figueredo2024modelos,
   title={Modelos de aprendizado de m{\'a}quina para {\'a}rvore de decis{\~a}o interpret{\'a}vel: otimiza{\c{c}}{\~a}o vs heur{\'\i}stica},
