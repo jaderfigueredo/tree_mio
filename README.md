@@ -1,6 +1,10 @@
 # Árvore de Classificação Ótima usando Otimização Inteira Mista
 Este trabalho implementa uma Árvore de Classificação Ótima usando Otimização Inteira Mista baseada no artigo Optimal classification trees de BERTSIMAS, D.; DUNN, J.
 
+<a href="https://proceedings.science/sbpo/sbpo-2025/trabalhos/arvore-de-classificacao-otima-interpretavel-para-o-problema-de-classificacao-de" target="_blank" rel="noopener noreferrer">
+  <img src="https://img.shields.io/badge/Acessar-Artigo-green?style=for-the-badge" alt="Acessar o Artigo" >
+</a>
+
 ## Abstract
 > Além de modelos de aprendizado de máquina já consolidados,
 como Árvore de Classificação e Regressão - CART, estudos recentes também
